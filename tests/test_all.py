@@ -65,6 +65,13 @@ def test_adjacent_interpolations():
     assert tuple(template) == template.interpolations
 
 
+def test_nested_braces():
+    template = t("my set: {{1,2,3}}")
+    assert template.strings == ("my set: ", "")
+    (interp,) = template.interpolations
+    assert interp.value == {1, 2, 3}
+
+
 def test_conversion_specifiers():
     """Tests !r, !s, and !a conversions."""
     value = "Test"
