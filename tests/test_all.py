@@ -75,6 +75,62 @@ def test_adjacent_interpolations():
     assert_templates_equal(actual, expected)
 
 
+@pytest.mark.xfail(reason="Issue #8: Escaped braces are not handled correctly")
+@pytest.mark.parametrize(
+    "s, expected_factory",
+    [
+        pytest.param(
+            r"my set: {{1,2,3}}",
+            lambda: Template(strings=("my set: {1,2,3}",), interpolations=()),
+        ),
+        pytest.param(
+            r"my set: {{{1,2,3}}}",
+            lambda: Template(
+                strings=("my set: {", "}"),
+                interpolations=(Interpolation(value={1, 2, 3}, expression="1,2,3"),),
+            ),
+        ),
+        pytest.param(
+            r"my set: {{{{1,2,3}}}}",
+            lambda: Template(strings=("my set: {{1,2,3}}",), interpolations=()),
+        ),
+        pytest.param(
+            r"value is string with braces: {'{{}}'}",
+            lambda: Template(
+                strings=("value is string with braces: ", ""),
+                interpolations=(Interpolation(value="{{}}", expression="'{{}}'"),),
+            ),
+        ),
+        pytest.param(
+            r"value is string with braces: {{'{4}'}}",
+            lambda: Template(
+                strings=("value is string with braces: {'", "'}"),
+                interpolations=(Interpolation(value=4, expression="4"),),
+            ),
+        ),
+        pytest.param(
+            r"value is string with braces: {'{{}}'}",
+            lambda: Template(
+                strings=("value is string with braces: ", ""),
+                interpolations=(Interpolation(value="{{}}", expression="'{{}}'"),),
+            ),
+        ),
+        pytest.param(
+            r"value is string with braces: {{'{4}'}}",
+            lambda: Template(
+                strings=("value is string with braces: {'", "'}"),
+                interpolations=(Interpolation(value=4, expression="4"),),
+            ),
+        ),
+    ],
+)
+def test_escaped_braces(s: str, expected_factory) -> None:
+    """Tests escaped braces in various configurations. See https://github.com/abilian/tstrings-backport/issues/8"""
+    actual = t(s)
+    expected = expected_factory()
+    assert_templates_equal(actual, expected)
+
+
 def test_conversion_specifiers():
     """Tests !r, !s, and !a conversions."""
     value = "Test"

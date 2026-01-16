@@ -33,7 +33,7 @@ which should be a drop-in replacement for the built-in t-strings.
 ## Limitations
 
 - **No t-string literal syntax**: You must use `t("...")`, not `t"..."`.
-- **No support for all edge cases**: Some advanced t-string edge cases may not be fully supported.
+- **No support for all edge cases**: Some advanced t-string edge cases may not be fully supported, for example, escaped brackets such as `t("my set: {{1,2,3}})" are not currently supported.
 
 ## Examples
 
