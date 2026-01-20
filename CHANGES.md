@@ -6,9 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Support `Template("Answer: ", Interpolation(5, "ans"))` flavor of `Template.__init__()`. Before, we only supported keyword-only, eg `Template(strings=("Answer: ", ""), interpolations=(Interpolation(5, "ans"), ))`. This brings us in line with the vanilla API for creating string.templatelib.Template. See https://github.com/abilian/tstrings-backport/issues/4.
+- `py.typed` marker for PEP 561 compliance (thanks @NickCrews)
 - GitHub CI configuration based on nox
 - SourceHut CI integration
-- `py.typed` marker for PEP 561 compliance (thanks @NickCrews)
 - Test for bogus format specifier error handling (thanks @NickCrews)
 - `assert_templates_equal()` test helper function (thanks @NickCrews)
 - Nox configuration for testing against multiple Python versions
