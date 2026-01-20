@@ -48,12 +48,23 @@ else:
 
 @runtime_checkable
 class IntoInterpolation(Protocol):
-    """Protocol for objects that can be converted into Interpolation instances."""
+    """Protocol for objects that have all the attributes of an Interpolation.
 
-    value: object
-    expression: str
-    conversion: Literal["a", "r", "s"] | None
-    format_spec: str
+    These are
+    - value: object
+    - expression: str
+    - conversion: Literal["a", "r", "s"] | None
+    - format_spec: str
+    """
+
+    @property
+    def value(self) -> object: ...
+    @property
+    def expression(self) -> str: ...
+    @property
+    def conversion(self) -> Literal["a", "r", "s"] | None: ...
+    @property
+    def format_spec(self) -> str: ...
 
 
 @dataclass(frozen=True, eq=False, **dataclass_extra_args)
