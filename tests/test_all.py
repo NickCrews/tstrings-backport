@@ -238,6 +238,90 @@ def test_syntax_error_in_expression_raises_error():
         t("This is invalid: {1 +}")
 
 
+def test_generator_coercion():
+    """Ensures that Template can be initialized with a generator."""
+    template = Template(
+        strings=(s for s in ("part1", "part2")),
+        interpolations=(i for i in (Interpolation(5, "five"),)),
+    )
+    assert isinstance(template.strings, tuple)
+    assert isinstance(template.interpolations, tuple)
+    expected = Template(
+        strings=("part1", "part2"), interpolations=(Interpolation(5, "five"),)
+    )
+    assert_templates_equal(template, expected)
+
+
+@pytest.mark.parametrize(
+    ("strings,interpolations"),
+    [
+        pytest.param(("only one string",), (Interpolation(5, "five"),), id="both 1"),
+        pytest.param(
+            ("string1", "string2"),
+            (Interpolation(5, "five"), Interpolation(10, "ten")),
+            id="both 2",
+        ),
+        pytest.param(("str1", "str2", "str3"), (), id="strings only"),
+    ],
+)
+def test_mismatched_lens_errors(strings, interpolations):
+    with pytest.raises(ValueError) as exc_info:
+        Template(strings=strings, interpolations=interpolations)
+    assert str(exc_info.value) == (
+        "Number of strings must be one more than number of interpolations."
+    )
+
+
+def test_both_varargs_and_kwargs_errors():
+    with pytest.raises(TypeError):
+        Template("hello", strings=("hello",), interpolations=())
+    with pytest.raises(TypeError):
+        Template(
+            "hello",
+            strings=("hello", "there"),
+            interpolations=(Interpolation(5, "five"),),
+        )
+
+
+def test_init_empty():
+    """Ensures that Template can be initialized with no values"""
+    template = Template()
+    assert template.strings == ("",)
+    assert template.interpolations == ()
+
+
+def test_init_single_string():
+    """Ensures that Template can be initialized with a single string"""
+    template = Template("single string")
+    assert template.strings == ("single string",)
+    assert template.interpolations == ()
+
+
+def test_init_adjecent_strings_merged():
+    """Ensures that adjacent strings are merged"""
+    template = Template("string1", "string2")
+    assert template.strings == ("string1string2",)
+    assert template.interpolations == ()
+
+
+def test_init_leading_interpolations():
+    template = Template(Interpolation(5, "five"), "string1", "string2")
+    expected = Template(
+        strings=("", "string1string2"),
+        interpolations=(Interpolation(5, "five"),),
+    )
+    assert_templates_equal(template, expected)
+
+
+def test_init_only_interpolations():
+    template = Template(Interpolation(5, "five"), Interpolation(10, "ten"))
+    expected = Template(
+        strings=("", "", ""),
+        interpolations=(Interpolation(5, "five"), Interpolation(10, "ten")),
+    )
+    assert_templates_equal(template, expected)
+
+
 def test_interpolation_repr():
     """Ensures that the repr of an Interpolation instance is as expected."""
     interp = Interpolation("value", "expr", "r", ".2f")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Literal, NoReturn, cast
@@ -66,24 +67,92 @@ class Interpolation:
         return id(self)
 
 
-@dataclass(frozen=True, eq=False, **dataclass_extra_args)
 class Template:
     """Emulates the string.templatelib.Template class from PEP 750.
 
     Represents a parsed t-string literal.
     """
 
-    strings: tuple[str, ...]
-    """
-    A non-empty tuple of the string parts of the template,
-    with N+1 items, where N is the number of interpolations
-    in the template.
-    """
-    interpolations: tuple[Interpolation, ...]
-    """
-    A tuple of the interpolation parts of the template.
-    This will be an empty tuple if there are no interpolations.
-    """
+    def __init__(
+        self,
+        *vargs: str | Interpolation,
+        strings: Iterable[str] = (),
+        interpolations: Iterable[Interpolation] = (),
+    ) -> None:
+        """Initializes a Template instance.
+
+        Args:
+            *vargs: Positional arguments that are either strings or Interpolations.
+                If provided, `strings` and `interpolations` must be empty.
+            strings: An iterable of string parts of the template.
+            interpolations: An iterable of Interpolation parts of the template.
+
+        Raises:
+            TypeError: If both positional and keyword arguments are provided.
+            ValueError: If the number of strings is not one more than the number
+                of interpolations.
+
+        Example:
+            >>> from tstrings import Interpolation, Template
+            >>> interp = Interpolation(value=42, expression="answer")
+
+            You can create a Template using keyword arguments:
+
+            >>> template = Template(
+            ...     strings=("The answer is ", "."), interpolations=(interp,)
+            ... )
+            >>> template.strings
+            ('The answer is ', '.')
+            >>> template.interpolations
+            (Interpolation(value=42, expression='answer', conversion=None, format_spec=''),)
+
+            Or using positional arguments:
+
+            >>> template2 = Template("The", " answer", " is ", interp, ".")
+            >>> template2.strings
+            ('The answer is ', '.')
+            >>> template2.interpolations
+            (Interpolation(value=42, expression='answer', conversion=None, format_spec=''),)
+        """  # noqa: E501
+        if vargs:
+            if strings or interpolations:
+                raise TypeError("Cannot mix positional and keyword arguments.")
+            parsed_strings: list[str] = []
+            parsed_interpolations: list[Interpolation] = []
+            current_string = ""
+            for arg in vargs:
+                if isinstance(arg, str):
+                    current_string += arg
+                elif isinstance(arg, Interpolation):
+                    parsed_strings.append(current_string)
+                    current_string = ""
+                    parsed_interpolations.append(arg)
+            parsed_strings.append(current_string)
+            self._strings = tuple(parsed_strings)
+            self._interpolations = tuple(parsed_interpolations)
+        else:
+            self._strings = tuple(strings) if strings else ("",)
+            self._interpolations = tuple(interpolations)
+        if len(self._strings) != len(self._interpolations) + 1:
+            raise ValueError(
+                "Number of strings must be one more than number of interpolations."
+            )
+
+    @property
+    def strings(self) -> tuple[str, ...]:
+        """A non-empty tuple of the string parts of the template.
+
+        There will always be one more string part than interpolation.
+        """
+        return self._strings
+
+    @property
+    def interpolations(self) -> tuple[Interpolation, ...]:
+        """A tuple of the interpolation parts of the template.
+
+        This will be an empty tuple if there are no interpolations.
+        """
+        return self._interpolations
 
     @property
     def values(self) -> tuple[object, ...]:
@@ -104,7 +173,7 @@ class Template:
             if i:
                 yield i
 
-    def __add__(self, other: Template) -> Template:
+    def __add__(self, other: Template, /) -> Template:
         """Adds two templates together."""
         # lazy duck-typing isinstance check
         if not hasattr(other, "strings") or not hasattr(other, "interpolations"):
@@ -116,7 +185,7 @@ class Template:
             interpolations=self.interpolations + other.interpolations,
         )
 
-    def __eq__(self, value: object) -> bool:
+    def __eq__(self, value: object, /) -> bool:
         """Template and Interpolation instances compare with object identity (is)."""
         return self is value
 
@@ -127,6 +196,10 @@ class Template:
     def __str__(self) -> NoReturn:
         """Explicitly disallowed."""
         raise TypeError("Template instances cannot be converted to strings directly.")
+
+    def __repr__(self) -> str:
+        """Debug representation of the Template instance."""
+        return f"{self.__class__.__name__}(strings={self.strings!r}, interpolations={self.interpolations!r})"  # noqa: E501
 
 
 def t(template_string: str, /) -> Template:
