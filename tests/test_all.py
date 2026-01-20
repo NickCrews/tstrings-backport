@@ -252,6 +252,37 @@ def test_generator_coercion():
     assert_templates_equal(template, expected)
 
 
+def test_interpolation_coercion():
+    """Things that look like Interpolations are coerced into Interpolations."""
+
+    class MyInterpolation:
+        def __init__(self, value, expression):
+            self.value = value
+            self.expression = expression
+            self.conversion = None
+            self.format_spec = ""
+
+    expected = Template(
+        strings=("hello ", "!"), interpolations=(Interpolation(5, "five"),)
+    )
+    template = Template("hello ", MyInterpolation(5, "five"), "!")
+    assert isinstance(template.interpolations[0], Interpolation)
+    assert_templates_equal(template, expected)
+
+    template = Template(
+        strings=("hello ", "!"), interpolations=(MyInterpolation(5, "five"),)
+    )
+    assert isinstance(template.interpolations[0], Interpolation)
+    assert_templates_equal(template, expected)
+
+
+def test_non_string_interpolations_errors():
+    with pytest.raises(TypeError):
+        Template("hello ", 5, "!")  # ty:ignore[invalid-argument-type]
+    with pytest.raises(TypeError):
+        Template(strings=("hello ", "!"), interpolations=(5, "five"))  # ty:ignore[invalid-argument-type]
+
+
 @pytest.mark.parametrize(
     ("strings,interpolations"),
     [

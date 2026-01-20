@@ -7,7 +7,7 @@ import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Literal, NoReturn, cast
+from typing import TYPE_CHECKING, Literal, NoReturn, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -46,6 +46,16 @@ else:
     dataclass_extra_args = {}
 
 
+@runtime_checkable
+class IntoInterpolation(Protocol):
+    """Protocol for objects that can be converted into Interpolation instances."""
+
+    value: object
+    expression: str
+    conversion: Literal["a", "r", "s"] | None
+    format_spec: str
+
+
 @dataclass(frozen=True, eq=False, **dataclass_extra_args)
 class Interpolation:
     """Emulates the string.templatelib.Interpolation class from PEP 750.
@@ -67,6 +77,20 @@ class Interpolation:
         return id(self)
 
 
+def coerce_interpolation(item: IntoInterpolation) -> Interpolation:
+    try:
+        return Interpolation(
+            value=item.value,
+            expression=item.expression,
+            conversion=item.conversion,
+            format_spec=item.format_spec,
+        )
+    except AttributeError as e:
+        raise TypeError(
+            f"Expected an Interpolation or IntoInterpolation, got {type(item)!r}"
+        ) from e
+
+
 class Template:
     """Emulates the string.templatelib.Template class from PEP 750.
 
@@ -75,9 +99,9 @@ class Template:
 
     def __init__(
         self,
-        *vargs: str | Interpolation,
+        *vargs: str | IntoInterpolation,
         strings: Iterable[str] = (),
-        interpolations: Iterable[Interpolation] = (),
+        interpolations: Iterable[IntoInterpolation] = (),
     ) -> None:
         """Initializes a Template instance.
 
@@ -94,7 +118,7 @@ class Template:
 
         Example:
             >>> from tstrings import Interpolation, Template
-            >>> interp = Interpolation(value=42, expression="answer")
+            >>> interp = Interpolation(42, "answer")
 
             You can create a Template using keyword arguments:
 
@@ -114,6 +138,7 @@ class Template:
             >>> template2.interpolations
             (Interpolation(value=42, expression='answer', conversion=None, format_spec=''),)
         """  # noqa: E501
+
         if vargs:
             if strings or interpolations:
                 raise TypeError("Cannot mix positional and keyword arguments.")
@@ -123,16 +148,19 @@ class Template:
             for arg in vargs:
                 if isinstance(arg, str):
                     current_string += arg
-                elif isinstance(arg, Interpolation):
+                else:
                     parsed_strings.append(current_string)
                     current_string = ""
-                    parsed_interpolations.append(arg)
+                    coerced = coerce_interpolation(arg)
+                    parsed_interpolations.append(coerced)
             parsed_strings.append(current_string)
             self._strings = tuple(parsed_strings)
             self._interpolations = tuple(parsed_interpolations)
         else:
             self._strings = tuple(strings) if strings else ("",)
-            self._interpolations = tuple(interpolations)
+            self._interpolations = tuple(
+                coerce_interpolation(i) for i in interpolations
+            )
         if len(self._strings) != len(self._interpolations) + 1:
             raise ValueError(
                 "Number of strings must be one more than number of interpolations."
