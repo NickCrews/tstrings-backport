@@ -143,3 +143,43 @@ def test_syntax_error_in_expression_raises_error():
     """Ensures an invalid expression raises SyntaxError."""
     with pytest.raises(SyntaxError):
         t("This is invalid: {1 +}")
+
+
+def test_double_brace_escape_open():
+    """{{ produces a literal { with no interpolation."""
+    template = t("open: {{")
+    assert template.strings == ("open: {",)
+    assert template.interpolations == ()
+
+
+def test_double_brace_escape_close():
+    """}} produces a literal } with no interpolation."""
+    template = t("close: }}")
+    assert template.strings == ("close: }",)
+    assert template.interpolations == ()
+
+
+def test_double_brace_escape_both():
+    """{{...}} produces literal braces with no interpolation (issue #8)."""
+    template = t("my set: {{1,2,3}}")
+    assert template.strings == ("my set: {1,2,3}",)
+    assert template.interpolations == ()
+
+
+def test_double_brace_escape_with_interpolation():
+    """{{{expr}}} produces a literal { before and } after an interpolation."""
+    value = 42
+    template = t("{{{value}}}")
+    assert template.strings == ("{", "}")
+    assert len(template.interpolations) == 1
+    assert template.interpolations[0].value == 42
+    assert template.interpolations[0].expression == "value"
+
+
+def test_double_brace_mixed_with_text():
+    """Escaped braces work correctly alongside regular text and interpolations."""
+    name = "world"
+    template = t("Hello {{name}} and {name}!")
+    assert template.strings == ("Hello {name} and ", "!")
+    assert len(template.interpolations) == 1
+    assert template.interpolations[0].value == "world"
