@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from tstrings import Interpolation, Template, t
+from tstrings import Interpolation, Template, convert, t
 
 
 def assert_interpolations_equal(actual: Interpolation, expected: Interpolation) -> None:
@@ -382,3 +382,22 @@ for part in template:
             assert False
 """
     exec(match_code, globals(), locals())
+
+
+# from https://github.com/python/cpython/blob/713be70175a2dad477a1cf5e7c00bab0edda04ad/Lib/test/test_string/test_templatelib.py#L173
+@pytest.mark.parametrize(
+    "obj",
+    ["Café", None, 3.14, (1, 2), {"key": "value"}, [1, 2, 3], {1, 2, 3}],
+)
+def test_convert(obj):
+    assert convert(obj, None) == obj
+    assert convert(obj, "s") == str(obj)
+    assert convert(obj, "r") == repr(obj)
+    assert convert(obj, "a") == ascii(obj)
+
+    with pytest.raises(ValueError):
+        convert(obj, "z")  # type: ignore
+    with pytest.raises(ValueError):
+        convert(obj, 1)  # type: ignore
+    with pytest.raises(ValueError):
+        convert(obj, object())  # type: ignore

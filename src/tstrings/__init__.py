@@ -6,7 +6,7 @@ import re
 import sys
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Literal, NoReturn, cast
+from typing import TYPE_CHECKING, Literal, NoReturn, TypeVar, cast, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Interpolation",
     "Template",
+    "convert",
     "t",
 ]
 
@@ -247,3 +248,39 @@ def t(template_string: str, /) -> Template:
     strings.append(template_string[last_end:])
 
     return Template(strings=tuple(strings), interpolations=tuple(interpolations))
+
+
+T = TypeVar("T")
+
+
+@overload
+def convert(obj: T, /, conversion: None = None) -> T: ...
+@overload
+def convert(obj: object, /, conversion: Literal["a", "r", "s"]) -> str: ...
+
+
+def convert(obj: T, /, conversion: Literal["a", "r", "s"] | None = None) -> str | T:
+    """Convert *obj* using formatted string literal semantics.
+
+    Examples
+    --------
+    >>> from fractions import Fraction
+    >>> half = Fraction(1, 2)
+    >>> convert(half, None)
+    Fraction(1, 2)
+    >>> convert(half, "r")
+    'Fraction(1, 2)'
+    >>> convert(half, "s")
+    '1/2'
+    >>> convert(half, "a")
+    'Fraction(1, 2)'
+    """
+    if conversion is None:
+        return obj
+    if conversion == "r":
+        return repr(obj)
+    if conversion == "s":
+        return str(obj)
+    if conversion == "a":
+        return ascii(obj)
+    raise ValueError(f"invalid conversion specifier: {conversion}")
