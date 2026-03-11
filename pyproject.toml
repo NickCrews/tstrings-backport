@@ -52,3 +52,15 @@ select = [
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.ruff]
+extend-exclude = [
+    "tests/_upstream_support.py",
+    "tests/test_upstream_templatelib.py",
+]
+
+[tool.ty.src]
+exclude = [
+    "tests/_upstream_support.py",
+    "tests/test_upstream_templatelib.py",
+]
